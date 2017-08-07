@@ -288,8 +288,14 @@ func (ctxt *Link) pclntab() {
 					switch ctxt.Arch.Family {
 					case sys.AMD64, sys.I386:
 						deferreturn--
-					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
+					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS64:
 						// no change
+					case sys.MIPS:
+						if r.Type == objabi.R_CALL && r.Siz == 0 {
+							// A marker. Actual start of call sequence
+							// is two instructions behind.
+							deferreturn -= 8
+						}
 					case sys.RISCV64:
 						// TODO(jsing): The JALR instruction is marked with
 						// R_CALLRISCV, whereas the actual reloc is currently

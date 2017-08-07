@@ -718,6 +718,13 @@ func (ctxt *Link) linksetup() {
 			got.Attr |= sym.AttrReachable
 		}
 	}
+
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.MIPS {
+		gpdisp := ctxt.Syms.ROLookup("_gp_disp", 0)
+		if gpdisp != nil {
+			gpdisp.Type = sym.SDYNIMPORT
+		}
+	}
 }
 
 // mangleTypeSym shortens the names of symbols that represent Go types
