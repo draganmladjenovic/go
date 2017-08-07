@@ -131,5 +131,6 @@ var Anames = []string{
 	"VMOVH",
 	"VMOVW",
 	"VMOVD",
+	"CPLOAD",
 	"LAST",
 }
