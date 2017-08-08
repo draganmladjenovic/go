@@ -380,7 +380,6 @@ func genMIPS(_64bit bool) {
 	movf := "MOVF"
 	add := "ADD"
 	sub := "SUB"
-	r28 := "R28"
 	regsize := 4
 	softfloat := "GOMIPS_softfloat"
 	if _64bit {
@@ -388,7 +387,6 @@ func genMIPS(_64bit bool) {
 		movf = "MOVD"
 		add = "ADDV"
 		sub = "SUBV"
-		r28 = "RSB"
 		regsize = 8
 		softfloat = "GOMIPS64_softfloat"
 	}
@@ -404,7 +402,7 @@ func genMIPS(_64bit bool) {
 		reg := fmt.Sprintf("R%d", i)
 		l.add(mov, reg, regsize)
 	}
-	l.add(mov, r28, regsize)
+	l.add(mov, "RSB", regsize)
 	l.addSpecial(
 		mov+" HI, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, HI",
