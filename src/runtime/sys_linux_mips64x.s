@@ -114,12 +114,14 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVWU	usec+0(FP), R3
 	MOVV	R3, R5
 	MOVW	$1000000, R4
-	DIVVU	R4, R3
-	MOVV	LO, R3
+
+	DIVLVU	R4, R3, R3
+
 	MOVV	R3, 8(R29)
 	MOVW	$1000, R4
-	MULVU	R3, R4
-	MOVV	LO, R4
+
+	MULLVU	R3, R4, R4
+
 	SUBVU	R4, R5
 	MOVV	R5, 16(R29)
 
@@ -198,8 +200,9 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVV	$1000000000, R4
-	MULVU	R4, R3
-	MOVV	LO, R3
+
+	MULLVU	R4, R3, R3
+
 	ADDVU	R5, R3
 	MOVV	R3, ret+0(FP)
 	RET

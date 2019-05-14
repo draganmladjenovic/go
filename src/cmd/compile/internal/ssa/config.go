@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
+	"strings"
 )
 
 // A Config holds readonly compilation information.
@@ -41,6 +42,7 @@ type Config struct {
 	Race           bool          // race detector enabled
 	NeedsFpScratch bool          // No direct move between GP and FP register sets
 	BigEndian      bool          //
+	ISA            string        // Instruction Set Architecture level
 }
 
 type (
@@ -283,6 +285,9 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegMIPS64
 		c.LinkReg = linkRegMIPS64
 		c.hasGReg = true
+		if strings.Contains(objabi.GOMIPS64, "r6") {
+			c.ISA = "r6"
+		}
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
@@ -350,6 +355,18 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 
 		// ... and SI on nacl/amd64.
 		opcodeTable[OpAMD64LoweredWB].reg.clobbers |= 1 << 6 // SI
+	}
+
+	if c.ISA == "r6" {
+		opcodeTable[OpMIPS64CMPEQF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPEQD].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGEF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGED].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGTF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGTD].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+
+		opcodeTable[OpMIPS64FPFlagFalse].reg.inputs = []inputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64FPFlagTrue].reg.inputs = []inputInfo{{0, fpRegMaskMIPS64}}
 	}
 
 	if ctxt.Flag_shared {

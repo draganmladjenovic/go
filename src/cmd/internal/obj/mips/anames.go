@@ -125,5 +125,13 @@ var Anames = []string{
 	"MOVDV",
 	"MOVVF",
 	"MOVVD",
+	"MULLV",
+	"MULHV",
+	"MULLVU",
+	"MULHVU",
+	"DIVLV",
+	"DIVHV",
+	"DIVLVU",
+	"DIVHVU",
 	"LAST",
 }

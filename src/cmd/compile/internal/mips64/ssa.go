@@ -6,11 +6,13 @@ package mips64
 
 import (
 	"math"
+	"strings"
 
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/obj/mips"
 )
 
@@ -170,7 +172,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64MULF,
 		ssa.OpMIPS64MULD,
 		ssa.OpMIPS64DIVF,
-		ssa.OpMIPS64DIVD:
+		ssa.OpMIPS64DIVD,
+		ssa.OpMIPS64MULV3,
+		ssa.OpMIPS64HMULV3,
+		ssa.OpMIPS64MULVU3,
+		ssa.OpMIPS64HMULVU3,
+		ssa.OpMIPS64DIVV3,
+		ssa.OpMIPS64MODV3,
+		ssa.OpMIPS64DIVVU3,
+		ssa.OpMIPS64MODVU3:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -244,6 +254,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
+		if !v.Type.IsFlags() {
+		  p.To.Type = obj.TYPE_REG
+		  p.To.Reg = v.Reg()
+		}
 	case ssa.OpMIPS64MOVVaddr:
 		p := s.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
@@ -707,27 +721,46 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 	case ssa.OpMIPS64FPFlagTrue,
 		ssa.OpMIPS64FPFlagFalse:
-		// MOVV	$0, r
-		// BFPF	2(PC)
-		// MOVV	$1, r
-		branch := mips.ABFPF
-		if v.Op == ssa.OpMIPS64FPFlagFalse {
-			branch = mips.ABFPT
-		}
-		p := s.Prog(mips.AMOVV)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = mips.REGZERO
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-		p2 := s.Prog(branch)
-		p2.To.Type = obj.TYPE_BRANCH
-		p3 := s.Prog(mips.AMOVV)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = 1
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = v.Reg()
-		p4 := s.Prog(obj.ANOP) // not a machine instruction, for branch to land
-		gc.Patch(p2, p4)
+		   if strings.Contains(objabi.GOMIPS64, "r6") {
+		     p := s.Prog(mips.AMOVW) // sign extends 0xFFFFFFFF to -1
+		     p.From.Type = obj.TYPE_REG
+		     p.From.Reg = v.Args[0].Reg()
+		     p.To.Type = obj.TYPE_REG
+		     p.To.Reg = v.Reg()
+
+		     maskOp := mips.AAND
+		     if v.Op == ssa.OpMIPS64FPFlagFalse {
+		       maskOp = mips.AADDVU
+		     }
+
+		     p1 := s.Prog(maskOp)
+		     p1.From.Type = obj.TYPE_CONST
+		     p1.From.Offset = 0x1
+		     p1.To.Type = obj.TYPE_REG
+		     p1.To.Reg = v.Reg()
+		   } else {
+		     // MOVV $0, r
+		     // BFPF 2(PC)
+		     // MOVV $1, r
+		     branch := mips.ABFPF
+		     if v.Op == ssa.OpMIPS64FPFlagFalse {
+		       branch = mips.ABFPT
+		     }
+		     p := s.Prog(mips.AMOVV)
+		     p.From.Type = obj.TYPE_REG
+		     p.From.Reg = mips.REGZERO
+		     p.To.Type = obj.TYPE_REG
+		     p.To.Reg = v.Reg()
+		     p2 := s.Prog(branch)
+		     p2.To.Type = obj.TYPE_BRANCH
+		     p3 := s.Prog(mips.AMOVV)
+		     p3.From.Type = obj.TYPE_CONST
+		     p3.From.Offset = 1
+		     p3.To.Type = obj.TYPE_REG
+		     p3.To.Reg = v.Reg()
+		     p4 := s.Prog(obj.ANOP) // not a machine instruction, for branch to land
+		     gc.Patch(p2, p4)
+		   }
 	case ssa.OpMIPS64LoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)

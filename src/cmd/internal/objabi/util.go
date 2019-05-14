@@ -56,7 +56,7 @@ func gomips() string {
 
 func gomips64() string {
 	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
-	case "hardfloat", "softfloat":
+	case "hardfloat", "softfloat", "r6":
 		return v
 	}
 	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")

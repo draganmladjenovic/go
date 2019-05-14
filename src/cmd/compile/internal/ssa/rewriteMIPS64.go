@@ -297,6 +297,18 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpMIPS64AND_0(v)
 	case OpMIPS64ANDconst:
 		return rewriteValueMIPS64_OpMIPS64ANDconst_0(v)
+	case OpMIPS64CMPEQD:
+		return rewriteValueMIPS64_OpMIPS64CMPEQD_0(v)
+	case OpMIPS64CMPEQF:
+		return rewriteValueMIPS64_OpMIPS64CMPEQF_0(v)
+	case OpMIPS64CMPGED:
+		return rewriteValueMIPS64_OpMIPS64CMPGED_0(v)
+	case OpMIPS64CMPGEF:
+		return rewriteValueMIPS64_OpMIPS64CMPGEF_0(v)
+	case OpMIPS64CMPGTD:
+		return rewriteValueMIPS64_OpMIPS64CMPGTD_0(v)
+	case OpMIPS64CMPGTF:
+		return rewriteValueMIPS64_OpMIPS64CMPGTF_0(v)
 	case OpMIPS64LoweredAtomicAdd32:
 		return rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd32_0(v)
 	case OpMIPS64LoweredAtomicAdd64:
@@ -3721,6 +3733,162 @@ func rewriteValueMIPS64_OpMIPS64ANDconst_0(v *Value) bool {
 		v.reset(OpMIPS64ANDconst)
 		v.AuxInt = c & d
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPEQD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPEQD <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPEQD <typ.Float64> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPEQD)
+		v.Type = typ.Float64
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPEQF_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPEQF <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPEQF <typ.Float32> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPEQF)
+		v.Type = typ.Float32
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGED_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPGED <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPGED <typ.Float64> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPGED)
+		v.Type = typ.Float64
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGEF_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPGEF <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPGEF <typ.Float32> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPGEF)
+		v.Type = typ.Float32
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGTD_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPGTD <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPGTD <typ.Float64> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPGTD)
+		v.Type = typ.Float64
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGTF_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
+	typ := &b.Func.Config.Types
+	_ = typ
+	// match: (CMPGTF <t> x y)
+	// cond: t.IsFlags() && config.ISA == "r6"
+	// result: (CMPGTF <typ.Float32> x y)
+	for {
+		t := v.Type
+		_ = v.Args[1]
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(t.IsFlags() && config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64CMPGTF)
+		v.Type = typ.Float32
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -8929,6 +9097,10 @@ func rewriteValueMIPS64_OpRsh8x8_0(v *Value) bool {
 	}
 }
 func rewriteValueMIPS64_OpSelect0_0(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (Select0 (DIVVU _ (MOVVconst [1])))
 	// cond:
 	// result: (MOVVconst [0])
@@ -9016,6 +9188,82 @@ func rewriteValueMIPS64_OpSelect0_0(v *Value) bool {
 		d := v_0_1.AuxInt
 		v.reset(OpMIPS64MOVVconst)
 		v.AuxInt = int64(uint64(c) % uint64(d))
+		return true
+	}
+	// match: (Select0 (MULVU x y))
+	// cond: config.ISA == "r6"
+	// result: (HMULVU3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64HMULVU3)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Select0 (MULV x y))
+	// cond: config.ISA == "r6"
+	// result: (HMULV3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULV {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64HMULV3)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Select0 (DIVV x y))
+	// cond: config.ISA == "r6"
+	// result: (MODV3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64MODV3)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Select0 (DIVVU x y))
+	// cond: config.ISA == "r6"
+	// result: (MODVU3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64MODVU3)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -9462,6 +9710,10 @@ func rewriteValueMIPS64_OpSelect1_10(v *Value) bool {
 	return false
 }
 func rewriteValueMIPS64_OpSelect1_20(v *Value) bool {
+	b := v.Block
+	_ = b
+	config := b.Func.Config
+	_ = config
 	// match: (Select1 (DIVV (MOVVconst [c]) (MOVVconst [d])))
 	// cond:
 	// result: (MOVVconst [c/d])
@@ -9506,6 +9758,63 @@ func rewriteValueMIPS64_OpSelect1_20(v *Value) bool {
 		d := v_0_1.AuxInt
 		v.reset(OpMIPS64MOVVconst)
 		v.AuxInt = int64(uint64(c) / uint64(d))
+		return true
+	}
+	// match: (Select1 (MULVU x y))
+	// cond: config.ISA == "r6"
+	// result: (MULVU3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64MULVU3)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Select1 (DIVV x y))
+	// cond: config.ISA == "r6"
+	// result: (DIVV3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64DIVV3)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (Select1 (DIVVU x y))
+	// cond: config.ISA == "r6"
+	// result: (DIVVU3 x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		y := v_0.Args[1]
+		if !(config.ISA == "r6") {
+			break
+		}
+		v.reset(OpMIPS64DIVVU3)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false

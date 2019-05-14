@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 )
 
 // ctxt0 holds state while assembling a single function.
@@ -104,6 +105,7 @@ var optab = []Optab{
 	{AADDF, C_FREG, C_NONE, C_FREG, 32, 4, 0, 0},
 	{AADDF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0},
 	{ACMPEQF, C_FREG, C_REG, C_NONE, 32, 4, 0, 0},
+	{ACMPEQF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0},
 	{AABSF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0},
 	{AMOVVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, sys.MIPS64},
 	{AMOVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0},
@@ -290,6 +292,7 @@ var optab = []Optab{
 
 	{ABEQ, C_REG, C_REG, C_SBRA, 6, 4, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0},
+	{ABFPT, C_FREG, C_NONE, C_SBRA, 6, 8, 0, sys.MIPS64},
 	{ABLEZ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0},
 	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0},
 
@@ -375,6 +378,7 @@ var optab = []Optab{
 	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64},
 	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64},
 	{ABREAK, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+	{AMULLV, C_REG, C_REG, C_REG, 2, 4, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0},
@@ -1006,6 +1010,15 @@ func buildop(ctxt *obj.Link) {
 		case AMOVVL:
 			opset(AMOVVR, r0)
 
+		case AMULLV:
+			opset(AMULHV, r0)
+			opset(AMULLVU, r0)
+			opset(AMULHVU, r0)
+			opset(ADIVLV, r0)
+			opset(ADIVHV, r0)
+			opset(ADIVLVU, r0)
+			opset(ADIVHVU, r0)
+
 		case AMOVW,
 			AMOVD,
 			AMOVF,
@@ -1120,7 +1133,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
 		a := AOR
 		if p.As == AMOVW && c.ctxt.Arch.Family == sys.MIPS64 {
-			a = AADDU // sign-extended to high 32 bits
+			o1 = OP_SRR(c.opirr(ASLL), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
+			break
 		}
 		o1 = OP_RRR(c.oprrr(a), uint32(REGZERO), uint32(p.From.Reg), uint32(p.To.Reg))
 
@@ -1183,7 +1197,15 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		v := c.regoff(&p.To)
 		o1 = OP_IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.From.Reg))
+		   if strings.Contains(objabi.GOMIPS64, "r6") {
+		     if p.As == ASC {
+		       o1 |= 0x26
+		     }
 
+		     if p.As == ASCV {
+		       o1 |= 0x27
+		     }
+		   }
 	case 8: /* mov soreg, r ==> lw o(r) */
 		r := int(p.From.Reg)
 		if r == 0 {
@@ -1192,10 +1214,20 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := c.regoff(&p.From)
 		o1 = OP_IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
+		   if strings.Contains(objabi.GOMIPS64, "r6") {
+		     if p.As == ALL {
+		       o1 |= 0x36
+		     }
+
+		     if p.As == ALLV {
+		       o1 |= 0x37
+		     }
+		   }
+
 	case 9: /* sll r1,[r2],r3 */
 		r := int(p.Reg)
 
-		if r == 0 {
+		if r == 0 && (p.As != ACLO && p.As != ACLZ ) {
 			r = int(p.To.Reg)
 		}
 		o1 = OP_RRR(c.oprrr(p.As), uint32(r), uint32(p.From.Reg), uint32(p.To.Reg))
@@ -1300,6 +1332,16 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		o1 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(p.To.Reg), uint32(r))
+
+
+       if strings.Contains(objabi.GOMIPS64, "r6") {
+         if p.As == AJMP {
+           o1 = OP_RRR(SP(6, 6), uint32(p.To.Reg), uint32(0), uint32(0))
+         } else {
+           o1 = OP_RRR(SP(7, 6), uint32(p.To.Reg), uint32(0), uint32(0))
+         }
+       }
+
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 0
@@ -1673,7 +1715,11 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(3, 5)
 
 	case AJMP:
-		return OP(1, 0)
+		if strings.Contains(objabi.GOMIPS64, "r6") {
+		  return OP(1, 1)
+		} else {
+		  return OP(1, 0)
+		}
 	case AJAL:
 		return OP(1, 1)
 
@@ -1749,18 +1795,41 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	case ANEGD:
 		return FPD(0, 7)
 	case ACMPEQF:
-		return FPF(6, 2)
+	    if strings.Contains(objabi.GOMIPS64, "r6") {
+	      return FPF(0, 2) | 4<<21
+	    } else {
+	      return FPF(6, 2)
+	    }
 	case ACMPEQD:
-		return FPD(6, 2)
+	 if strings.Contains(objabi.GOMIPS64, "r6") {
+	   return FPD(0, 2) | 4<<21
+	 } else {
+	   return FPD(6, 2)
+	 }
 	case ACMPGTF:
-		return FPF(7, 4)
+	 if strings.Contains(objabi.GOMIPS64, "r6") {
+	   return FPF(0, 4) | 4<<21
+	 } else {
+	   return FPF(7, 4)
+	 }
 	case ACMPGTD:
-		return FPD(7, 4)
+	 if strings.Contains(objabi.GOMIPS64, "r6") {
+	   return FPD(0, 4) | 4<<21
+	 } else {
+	   return FPD(7, 4)
+	 }
 	case ACMPGEF:
-		return FPF(7, 6)
+	 if strings.Contains(objabi.GOMIPS64, "r6") {
+	   return FPF(0, 6) | 4<<21
+	 } else {
+	   return FPF(7, 6)
+	 }
 	case ACMPGED:
-		return FPD(7, 6)
-
+	 if strings.Contains(objabi.GOMIPS64, "r6") {
+	   return FPD(0, 6) | 4<<21
+	 } else {
+	   return FPD(7, 6)
+	 }
 	case ASQRTF:
 		return FPF(0, 4)
 	case ASQRTD:
@@ -1779,10 +1848,35 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(0, 1) | (1 << 16)
 	case ACMOVF:
 		return OP(0, 1) | (0 << 16)
-	case ACLO:
-		return SP(3, 4) | OP(4, 1)
 	case ACLZ:
+	  if strings.Contains(objabi.GOMIPS64, "r6") {
+		return 1<<6 | OP(2, 0)
+	  } else {
 		return SP(3, 4) | OP(4, 0)
+	  }
+	case ACLO:
+	  if strings.Contains(objabi.GOMIPS64, "r6") {
+		return 1<<6 | OP(2, 1)
+	  } else {
+		return SP(3, 4) | OP(4, 1)
+	  }
+
+	case AMULLV:
+	  return 2<<6 | OP(3, 4)
+	case AMULHV:
+	  return 3<<6 | OP(3, 4)
+	case AMULLVU:
+	  return 2<<6 | OP(3, 5)
+	case AMULHVU:
+	  return 3<<6 | OP(3, 5)
+	case ADIVLV:
+	  return 2<<6 | OP(3, 6)
+	case ADIVHV:
+	  return 3<<6 | OP(3, 6)
+	case ADIVLVU:
+	  return 2<<6 | OP(3, 7)
+	case ADIVHVU:
+	  return 3<<6 | OP(3, 7)
 	}
 
 	if a < 0 {
@@ -1818,7 +1912,7 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case ASRA:
 		return OP(0, 3)
 	case AADDV:
-		return SP(3, 0)
+		return SP(3, 1)
 	case AADDVU:
 		return SP(3, 1)
 
@@ -1861,10 +1955,16 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case -ABLTZAL:
 		return SP(0, 1) | BCOND(2, 2) /* likely */
 	case ABFPT:
+	     if strings.Contains(objabi.GOMIPS64, "r6") {
+	       return SP(2, 1) | 13<<21
+	     }
 		return SP(2, 1) | (257 << 16)
 	case -ABFPT:
 		return SP(2, 1) | (259 << 16) /* likely */
 	case ABFPF:
+	     if strings.Contains(objabi.GOMIPS64, "r6") {
+	       return SP(2, 1) | 9<<21
+	     }
 		return SP(2, 1) | (256 << 16)
 	case -ABFPF:
 		return SP(2, 1) | (258 << 16) /* likely */
@@ -1941,14 +2041,33 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case ATNE:
 		return OP(6, 6)
 	case -ALL:
-		return SP(6, 0)
+	     if strings.Contains(objabi.GOMIPS64, "r6") {
+	       return SP(3, 7)
+	     } else {
+	       return SP(6, 0)
+	     }
 	case -ALLV:
-		return SP(6, 4)
+	  if strings.Contains(objabi.GOMIPS64, "r6") {
+	       return SP(3, 7)
+	     } else {
+	       return SP(6, 4)
+	     }
+
 	case ASC:
-		return SP(7, 0)
+	  if strings.Contains(objabi.GOMIPS64, "r6") {
+	    return SP(3, 7)
+	  } else {
+	    return SP(7, 0)
+	  }
 	case ASCV:
-		return SP(7, 4)
-	}
+	  if strings.Contains(objabi.GOMIPS64, "r6") {
+	    return SP(3, 7)
+	  } else {
+	    return SP(7, 4)
+	  }
+
+ }
+
 
 	if a < 0 {
 		c.ctxt.Diag("bad irr opcode -%v", -a)

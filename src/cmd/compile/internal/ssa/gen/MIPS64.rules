@@ -683,3 +683,19 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First nil no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First nil yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 -> (First nil no yes)
+
+(CMPEQF <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPEQF <typ.Float32> x y)
+(CMPEQD <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPEQD <typ.Float64> x y)
+(CMPGEF <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPGEF <typ.Float32> x y)
+(CMPGED <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPGED <typ.Float64> x y)
+(CMPGTF <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPGTF <typ.Float32> x y)
+(CMPGTD <t> x y) && t.IsFlags() && config.ISA == "r6" -> (CMPGTD <typ.Float64> x y)
+
+
+(Select1 (MULVU x y)) && config.ISA == "r6" -> (MULVU3 x y)
+(Select0 (MULVU x y)) && config.ISA == "r6" -> (HMULVU3 x y)
+(Select0 (MULV x y)) && config.ISA == "r6" -> (HMULV3 x y)
+(Select1 (DIVV x y)) && config.ISA == "r6" -> (DIVV3 x y)
+(Select0 (DIVV x y)) && config.ISA == "r6" -> (MODV3 x y)
+(Select1 (DIVVU x y)) && config.ISA == "r6" -> (DIVVU3 x y)
+(Select0 (DIVVU x y)) && config.ISA == "r6" -> (MODVU3 x y)

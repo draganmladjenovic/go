@@ -238,9 +238,14 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
 	}
 
+
 	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
-		// Define GOMIPS64_value from cfg.GOMIPS64.
-		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+		if strings.Contains(cfg.GOMIPS64, "softfloat") {
+		  args = append(args, "-D", "GOMIPS64_softfloat")
+		}
+		if strings.Contains(cfg.GOMIPS64, "r6") {
+		  args = append(args, "-D", "GOMIPS64_r6")
+		}
 	}
 
 	return args
