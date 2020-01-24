@@ -1186,6 +1186,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("short branch too far\n%v", p)
 		}
 		o1 = OP_IRR(c.opirr(p.As), uint32(v), uint32(p.From.Reg), uint32(p.Reg))
+
+		if strings.Contains(objabi.GOMIPS64, "r6") && (p.As == ABFPT || p.As == ABFPF) {
+		  o1 = OP_IRR(c.opirr(p.As), uint32(v), uint32(0), uint32(p.From.Reg))
+		  break
+		}
 		// for ABFPT and ABFPF only: always fill delay slot with 0
 		// see comments in func preprocess for details.
 		o2 = 0
