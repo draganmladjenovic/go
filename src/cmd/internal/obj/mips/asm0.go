@@ -48,6 +48,7 @@ type ctxt0 struct {
 	autosize   int32
 	instoffset int64
 	pc         int64
+	mask       uint8
 }
 
 // Instruction layout.
@@ -75,6 +76,8 @@ type Optab struct {
 const (
 	// Optab.flag
 	NOTUSETMP = 1 << iota // p expands to multiple instructions, but does NOT use REGTMP
+	NOTR6                 // p not compatible with R6 isa revision
+	R6
 )
 
 var optab = []Optab{
@@ -97,7 +100,7 @@ var optab = []Optab{
 	{AADD, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{AADDV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64, 0},
 	{AAND, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
-	{ACMOVN, C_REG, C_REG, C_REG, 2, 4, 0, 0, 0},
+	{ACMOVN, C_REG, C_REG, C_REG, 2, 4, 0, 0, NOTR6},
 	{ANEGW, C_REG, C_NONE, C_REG, 2, 4, 0, 0, 0},
 	{ANEGV, C_REG, C_NONE, C_REG, 2, 4, 0, sys.MIPS64, 0},
 
@@ -105,11 +108,12 @@ var optab = []Optab{
 	{ASLL, C_REG, C_REG, C_REG, 9, 4, 0, 0, 0},
 	{ASLLV, C_REG, C_NONE, C_REG, 9, 4, 0, sys.MIPS64, 0},
 	{ASLLV, C_REG, C_REG, C_REG, 9, 4, 0, sys.MIPS64, 0},
-	{ACLO, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
+	{ACLO, C_REG, C_NONE, C_REG, 9, 4, 0, 0, NOTR6},
 
 	{AADDF, C_FREG, C_NONE, C_FREG, 32, 4, 0, 0, 0},
 	{AADDF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0, 0},
-	{ACMPEQF, C_FREG, C_REG, C_NONE, 32, 4, 0, 0, 0},
+	{ACMPEQF, C_FREG, C_REG, C_NONE, 32, 4, 0, 0, NOTR6},
+	{ACMPEQF, C_FREG, C_REG, C_FREG, 32, 4, 0, 0, R6},
 	{AABSF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
 	{AMOVVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, sys.MIPS64, 0},
 	{AMOVF, C_FREG, C_NONE, C_FREG, 33, 4, 0, 0, 0},
@@ -120,22 +124,22 @@ var optab = []Optab{
 	{AMOVV, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
 	{AMOVB, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
 	{AMOVBU, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
-	{AMOVWL, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
-	{AMOVVL, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0},
+	{AMOVWL, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, 0, NOTR6},
+	{AMOVVL, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, NOTR6},
 	{AMOVW, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
 	{AMOVWU, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
 	{AMOVV, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
 	{AMOVB, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVWL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, 0},
-	{AMOVVL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
+	{AMOVWL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, 0, NOTR6},
+	{AMOVVL, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, NOTR6},
 	{AMOVW, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
 	{AMOVWU, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
 	{AMOVV, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
 	{AMOVB, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVWL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
-	{AMOVVL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
+	{AMOVWL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, NOTR6},
+	{AMOVVL, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, NOTR6},
 	{ASC, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, 0, 0},
 	{ASCV, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
 
@@ -144,22 +148,22 @@ var optab = []Optab{
 	{AMOVV, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, 0},
 	{AMOVB, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, 0},
 	{AMOVBU, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, 0},
-	{AMOVWL, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, 0},
-	{AMOVVL, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, 0},
+	{AMOVWL, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, NOTR6},
+	{AMOVVL, C_SEXT, C_NONE, C_REG, 8, 4, REGSB, sys.MIPS64, NOTR6},
 	{AMOVW, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
 	{AMOVWU, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.MIPS64, 0},
 	{AMOVV, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.MIPS64, 0},
 	{AMOVB, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
 	{AMOVBU, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVWL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, 0},
-	{AMOVVL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.MIPS64, 0},
+	{AMOVWL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, 0, NOTR6},
+	{AMOVVL, C_SAUTO, C_NONE, C_REG, 8, 4, REGSP, sys.MIPS64, NOTR6},
 	{AMOVW, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
 	{AMOVWU, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.MIPS64, 0},
 	{AMOVV, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.MIPS64, 0},
 	{AMOVB, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
 	{AMOVBU, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVWL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
-	{AMOVVL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.MIPS64, 0},
+	{AMOVWL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, NOTR6},
+	{AMOVVL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.MIPS64, NOTR6},
 	{ALL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, 0, 0},
 	{ALLV, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO, sys.MIPS64, 0},
 
@@ -244,18 +248,20 @@ var optab = []Optab{
 	{AMOVW, C_LCON, C_NONE, C_REG, 19, 8, 0, 0, NOTUSETMP},
 	{AMOVV, C_LCON, C_NONE, C_REG, 19, 8, 0, sys.MIPS64, NOTUSETMP},
 
-	{AMOVW, C_HI, C_NONE, C_REG, 20, 4, 0, 0, 0},
-	{AMOVV, C_HI, C_NONE, C_REG, 20, 4, 0, sys.MIPS64, 0},
-	{AMOVW, C_LO, C_NONE, C_REG, 20, 4, 0, 0, 0},
-	{AMOVV, C_LO, C_NONE, C_REG, 20, 4, 0, sys.MIPS64, 0},
-	{AMOVW, C_REG, C_NONE, C_HI, 21, 4, 0, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_HI, 21, 4, 0, sys.MIPS64, 0},
-	{AMOVW, C_REG, C_NONE, C_LO, 21, 4, 0, 0, 0},
-	{AMOVV, C_REG, C_NONE, C_LO, 21, 4, 0, sys.MIPS64, 0},
+	{AMOVW, C_HI, C_NONE, C_REG, 20, 4, 0, 0, NOTR6},
+	{AMOVV, C_HI, C_NONE, C_REG, 20, 4, 0, sys.MIPS64, NOTR6},
+	{AMOVW, C_LO, C_NONE, C_REG, 20, 4, 0, 0, NOTR6},
+	{AMOVV, C_LO, C_NONE, C_REG, 20, 4, 0, sys.MIPS64, NOTR6},
+	{AMOVW, C_REG, C_NONE, C_HI, 21, 4, 0, 0, NOTR6},
+	{AMOVV, C_REG, C_NONE, C_HI, 21, 4, 0, sys.MIPS64, NOTR6},
+	{AMOVW, C_REG, C_NONE, C_LO, 21, 4, 0, 0, NOTR6},
+	{AMOVV, C_REG, C_NONE, C_LO, 21, 4, 0, sys.MIPS64, NOTR6},
 
-	{AMUL, C_REG, C_REG, C_NONE, 22, 4, 0, 0, 0},
-	{AMUL, C_REG, C_REG, C_REG, 22, 4, 0, 0, 0},
-	{AMULV, C_REG, C_REG, C_NONE, 22, 4, 0, sys.MIPS64, 0},
+	{AMUL, C_REG, C_REG, C_NONE, 22, 4, 0, 0, NOTR6},
+	{AMUL, C_REG, C_REG, C_REG, 22, 4, 0, 0, NOTR6},
+	{AMULV, C_REG, C_REG, C_NONE, 22, 4, 0, sys.MIPS64, NOTR6},
+	{AMULV, C_REG, C_REG, C_REG, 2, 4, 0, sys.MIPS64, R6},
+	{AHMULV, C_REG, C_REG, C_REG, 2, 4, 0, sys.MIPS64, R6},
 
 	{AADD, C_ADD0CON, C_REG, C_REG, 4, 4, 0, 0, 0},
 	{AADD, C_ADD0CON, C_NONE, C_REG, 4, 4, 0, 0, 0},
@@ -297,7 +303,8 @@ var optab = []Optab{
 	{ABEQ, C_REG, C_REG, C_SBRA, 6, 4, 0, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
 	{ABLEZ, C_REG, C_NONE, C_SBRA, 6, 4, 0, 0, 0},
-	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0, NOTUSETMP},
+	{ABFPT, C_NONE, C_NONE, C_SBRA, 6, 8, 0, 0, NOTUSETMP | NOTR6},
+	{ABFPT, C_FREG, C_NONE, C_SBRA, 6, 8, 0, sys.MIPS64, NOTUSETMP | R6},
 
 	{AJMP, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
 	{AJAL, C_NONE, C_NONE, C_LBRA, 11, 4, 0, 0, 0},
@@ -375,11 +382,11 @@ var optab = []Optab{
 
 	{ATEQ, C_SCON, C_REG, C_REG, 15, 4, 0, 0, 0},
 	{ATEQ, C_SCON, C_NONE, C_REG, 15, 4, 0, 0, 0},
-	{ACMOVT, C_REG, C_NONE, C_REG, 17, 4, 0, 0, 0},
+	{ACMOVT, C_REG, C_NONE, C_REG, 17, 4, 0, 0, NOTR6},
 
-	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0}, /* really CACHE instruction */
-	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
-	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
+	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, NOTR6}, /* really CACHE instruction */
+	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, NOTR6},
+	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, NOTR6},
 	{ABREAK, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0, 0},
@@ -403,6 +410,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	c := ctxt0{ctxt: ctxt, newprog: newprog, cursym: cursym, autosize: int32(p.To.Offset + ctxt.FixedFrameSize())}
+	c.init()
 
 	if oprange[AOR&obj.AMask] == nil {
 		c.ctxt.Diag("mips ops not initialized, call mips.buildop first")
@@ -517,6 +525,20 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// so instruction sequences that use REGTMP are unsafe to
 	// preempt asynchronously.
 	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+}
+
+func (c *ctxt0) useR6() bool {
+	return c.ctxt.Arch.Family == sys.MIPS64 && objabi.GOMIPS64.ISA >= 6
+}
+
+func (c *ctxt0) init() {
+	mask := uint8(NOTUSETMP)
+	if c.useR6() {
+		mask |= R6
+	} else {
+		mask |= NOTR6
+	}
+	c.mask = ^mask
 }
 
 // Return whether p is an unsafe point.
@@ -750,7 +772,9 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
 	c3 := &xcmp[a3]
 	for i := range ops {
 		op := &ops[i]
-		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] && (op.family == 0 || c.ctxt.Arch.Family == op.family) {
+		if int(op.a2) == a2 && c1[op.a1] && c3[op.a3] &&
+			(op.family == 0 || c.ctxt.Arch.Family == op.family) &&
+			(op.flag&c.mask == 0) {
 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
 			return op
 		}
@@ -1029,6 +1053,9 @@ func buildop(ctxt *obj.Link) {
 		case AMOVVL:
 			opset(AMOVVR, r0)
 
+		case AHMULV:
+			opset(AHMULVU, r0)
+
 		case AMOVW,
 			AMOVD,
 			AMOVF,
@@ -1197,6 +1224,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("short branch too far\n%v", p)
 		}
 		o1 = OP_IRR(c.opirr(p.As), uint32(v), uint32(p.From.Reg), uint32(p.Reg))
+
+		if c.useR6() && (p.As == ABFPT || p.As == ABFPF) {
+			o1 = OP_IRR(c.opirr(p.As), uint32(v), uint32(0), uint32(p.From.Reg))
+		}
 		// for ABFPT and ABFPF only: always fill delay slot with 0
 		// see comments in func preprocess for details.
 		o2 = 0
@@ -1699,18 +1730,41 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return OP(3, 0)
 	case AMULU:
 		return OP(3, 1)
-	case AREMV,
-		ADIVV:
+	case AREMV:
+		if c.useR6() {
+			return (3 << 6) | OP(3, 6)
+		}
+		fallthrough
+	case ADIVV:
+		if c.useR6() {
+			return (2 << 6) | OP(3, 6)
+		}
 		return OP(3, 6)
-	case AREMVU,
-		ADIVVU:
+	case AREMVU:
+		if c.useR6() {
+			return (3 << 6) | OP(3, 7)
+		}
+		fallthrough
+	case ADIVVU:
+		if c.useR6() {
+			return (2 << 6) | OP(3, 7)
+		}
 		return OP(3, 7)
 	case AMULV:
+		if c.useR6() {
+			return (2 << 6) | OP(3, 4)
+		}
 		return OP(3, 4)
 	case AMULVU:
+		if c.useR6() {
+			return (2 << 6) | OP(3, 5)
+		}
 		return OP(3, 5)
 
 	case AJMP:
+		if c.useR6() {
+			return OP(1, 1)
+		}
 		return OP(1, 0)
 	case AJAL:
 		return OP(1, 1)
@@ -1787,18 +1841,41 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	case ANEGD:
 		return FPD(0, 7)
 	case ACMPEQF:
-		return FPF(6, 2)
+		if c.useR6() {
+			return FPF(0, 2) | (4 << 21)
+		} else {
+			return FPF(6, 2)
+		}
 	case ACMPEQD:
-		return FPD(6, 2)
+		if c.useR6() {
+			return FPD(0, 2) | (4 << 21)
+		} else {
+			return FPD(6, 2)
+		}
 	case ACMPGTF:
-		return FPF(7, 4)
+		if c.useR6() {
+			return FPF(0, 4) | (4 << 21)
+		} else {
+			return FPF(7, 4)
+		}
 	case ACMPGTD:
-		return FPD(7, 4)
+		if c.useR6() {
+			return FPD(0, 4) | (4 << 21)
+		} else {
+			return FPD(7, 4)
+		}
 	case ACMPGEF:
-		return FPF(7, 6)
+		if c.useR6() {
+			return FPF(0, 6) | (4 << 21)
+		} else {
+			return FPF(7, 6)
+		}
 	case ACMPGED:
-		return FPD(7, 6)
-
+		if c.useR6() {
+			return FPD(0, 6) | (4 << 21)
+		} else {
+			return FPD(7, 6)
+		}
 	case ASQRTF:
 		return FPF(0, 4)
 	case ASQRTD:
@@ -1825,6 +1902,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return SP(3, 4) | OP(0, 0)
 	case AMSUB:
 		return SP(3, 4) | OP(0, 4)
+	case AHMULV:
+		return (3 << 6) | OP(3, 4)
+	case AHMULVU:
+		return (3 << 6) | OP(3, 5)
 	}
 
 	if a < 0 {
@@ -1838,7 +1919,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 func (c *ctxt0) opirr(a obj.As) uint32 {
 	switch a {
 	case AADD:
-		return SP(1, 0)
+		if !c.useR6() {
+			return SP(1, 0)
+		}
+		fallthrough
 	case AADDU:
 		return SP(1, 1)
 	case ASGT:
@@ -1860,7 +1944,10 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case ASRA:
 		return OP(0, 3)
 	case AADDV:
-		return SP(3, 0)
+		if !c.useR6() {
+			return SP(3, 0)
+		}
+		fallthrough
 	case AADDVU:
 		return SP(3, 1)
 
@@ -1903,10 +1990,16 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case -ABLTZAL:
 		return SP(0, 1) | BCOND(2, 2) /* likely */
 	case ABFPT:
+		if c.useR6() {
+			return SP(2, 1) | (13 << 21)
+		}
 		return SP(2, 1) | (257 << 16)
 	case -ABFPT:
 		return SP(2, 1) | (259 << 16) /* likely */
 	case ABFPF:
+		if c.useR6() {
+			return SP(2, 1) | (9 << 21)
+		}
 		return SP(2, 1) | (256 << 16)
 	case -ABFPF:
 		return SP(2, 1) | (258 << 16) /* likely */
@@ -1983,13 +2076,26 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 	case ATNE:
 		return OP(6, 6)
 	case -ALL:
+		if c.useR6() {
+			return SP(3, 7) | 0x36
+		}
 		return SP(6, 0)
 	case -ALLV:
+		if c.useR6() {
+			return SP(3, 7) | 0x37
+		}
 		return SP(6, 4)
 	case ASC:
+		if c.useR6() {
+			return SP(3, 7) | 0x26
+		}
 		return SP(7, 0)
 	case ASCV:
+		if c.useR6() {
+			return SP(3, 7) | 0x27
+		}
 		return SP(7, 4)
+
 	}
 
 	if a < 0 {

@@ -831,7 +831,13 @@ func runInstall(pkg string, ch chan struct{}) {
 	}
 	if goarch == "mips64" || goarch == "mips64le" {
 		// Define GOMIPS64_value from gomips64.
-		asmArgs = append(asmArgs, "-D", "GOMIPS64_"+gomips64)
+		for _, opt := range strings.Split(gomips64, ",") {
+			// Do not expose mips3 to user.
+			// It only serves as the negation of 'r6' opt.
+			if opt != "mips3" {
+				asmArgs = append(asmArgs, "-D", "GOMIPS64_"+opt)
+			}
+		}
 	}
 	goasmh := pathf("%s/go_asm.h", workdir)
 

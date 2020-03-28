@@ -241,7 +241,7 @@ var (
 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
 	GO386    = envOr("GO386", objabi.GO386)
 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
-	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+	GOMIPS64 = envOr("GOMIPS64", fmt.Sprint(objabi.GOMIPS64))
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
 

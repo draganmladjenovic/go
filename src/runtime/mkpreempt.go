@@ -383,6 +383,7 @@ func genMIPS(_64bit bool) {
 	r28 := "R28"
 	regsize := 4
 	softfloat := "GOMIPS_softfloat"
+	r6 := ""
 	if _64bit {
 		mov = "MOVV"
 		movf = "MOVD"
@@ -391,6 +392,7 @@ func genMIPS(_64bit bool) {
 		r28 = "RSB"
 		regsize = 8
 		softfloat = "GOMIPS64_softfloat"
+		r6 = "GOMIPS64_r6"
 	}
 
 	// Add integer registers R1-R22, R24-R25, R28
@@ -405,17 +407,20 @@ func genMIPS(_64bit bool) {
 		l.add(mov, reg, regsize)
 	}
 	l.add(mov, r28, regsize)
-	l.addSpecial(
+
+	var lhilo = layout{sp: "R29", stack: l.stack}
+
+	lhilo.addSpecial(
 		mov+" HI, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, HI",
 		regsize)
-	l.addSpecial(
+	lhilo.addSpecial(
 		mov+" LO, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, LO",
 		regsize)
 
 	// Add floating point control/status register FCR31 (FCR0-FCR30 are irrelevant)
-	var lfp = layout{sp: "R29", stack: l.stack}
+	var lfp = layout{sp: "R29", stack: lhilo.stack}
 	lfp.addSpecial(
 		mov+" FCR31, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, FCR31",
@@ -431,6 +436,13 @@ func genMIPS(_64bit bool) {
 	p(sub+" $%d, R29", lfp.stack)
 
 	l.save()
+	if r6 != "" {
+		p("#ifndef %s", r6)
+	}
+	lhilo.save()
+	if r6 != "" {
+		p("#endif")
+	}
 	p("#ifndef %s", softfloat)
 	lfp.save()
 	p("#endif")
@@ -438,6 +450,13 @@ func genMIPS(_64bit bool) {
 	p("#ifndef %s", softfloat)
 	lfp.restore()
 	p("#endif")
+	if r6 != "" {
+		p("#ifndef %s", r6)
+	}
+	lhilo.restore()
+	if r6 != "" {
+		p("#endif")
+	}
 	l.restore()
 
 	p(mov+" %d(R29), R31", lfp.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it

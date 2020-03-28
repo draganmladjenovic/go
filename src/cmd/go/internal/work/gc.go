@@ -255,8 +255,13 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	}
 
 	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
-		// Define GOMIPS64_value from cfg.GOMIPS64.
-		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+		for _, opt := range strings.Split(cfg.GOMIPS64, ",") {
+			// Do not expose mips3 to user.
+			// It only serves as the negation of 'r6' opt.
+			if opt != "mips3" {
+				args = append(args, "-D", "GOMIPS64_"+opt)
+			}
+		}
 	}
 
 	return args
