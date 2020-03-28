@@ -177,6 +177,16 @@ func init() {
 		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV", typ: "(Int64,Int64)"},                        // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
 		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU", typ: "(UInt64,UInt64)"},                    // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
 
+		// r6 3-operand multiply/divide ops
+		{name: "MULV3", argLength: 2, reg: gp21, asm: "MULV", commutative: true, typ: "Int64"},
+		{name: "HMULV3", argLength: 2, reg: gp21, asm: "HMULV", commutative: true, typ: "Int64"},
+		{name: "MULVU3", argLength: 2, reg: gp21, asm: "MULVU", commutative: true, typ: "UInt64"},
+		{name: "HMULVU3", argLength: 2, reg: gp21, asm: "HMULVU", commutative: true, typ: "UInt64"},
+		{name: "DIVV3", argLength: 2, reg: gp21, asm: "DIVV", typ: "Int64"},
+		{name: "REMV3", argLength: 2, reg: gp21, asm: "REMV", typ: "Int64"},
+		{name: "DIVVU3", argLength: 2, reg: gp21, asm: "DIVVU", typ: "Int64"},
+		{name: "REMVU3", argLength: 2, reg: gp21, asm: "REMVU", typ: "UInt64"},
+
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
 		{name: "SUBF", argLength: 2, reg: fp21, asm: "SUBF"},                    // arg0 - arg1

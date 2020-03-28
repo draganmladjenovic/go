@@ -1694,8 +1694,9 @@
 // 		For GOARCH=mips{,le}, whether to use floating point instructions.
 // 		Valid values are hardfloat (default), softfloat.
 // 	GOMIPS64
-// 		For GOARCH=mips64{,le}, whether to use floating point instructions.
-// 		Valid values are hardfloat (default), softfloat.
+// 		For GOARCH=mips64{,le}, comma-separated list inicating whether to use
+// 		floating point instructions and target isa level.
+// 		Valid values are hardfloat (default), softfloat, mips3(default) and r6.
 // 	GOWASM
 // 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 // 		Valid values are satconv, signext.

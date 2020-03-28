@@ -443,6 +443,8 @@ const (
 	AMOVDV
 	AMOVVF
 	AMOVVD
+	AHMULV
+	AHMULVU
 
 	/* MSA */
 	AVMOVB

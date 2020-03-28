@@ -687,3 +687,10 @@
 (GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First no yes)
 (GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 -> (First no yes)
+
+
+(CMP(EQ|GE|GT)F <t> x y) && t.IsFlags() && objabi.GOMIPS64.ISA >= 6 -> (CMP(EQ|GE|GT)F <typ.Float32> x y)
+(CMP(EQ|GE|GT)D <t> x y) && t.IsFlags() && objabi.GOMIPS64.ISA >= 6 -> (CMP(EQ|GE|GT)D <typ.Float64> x y)
+(Select1 ((MULVU|DIVV|DIVVU) x y)) && objabi.GOMIPS64.ISA >= 6 -> ((MULVU|DIVV|DIVVU)3 x y)
+(Select0 ((MULVU|MULV) x y)) && objabi.GOMIPS64.ISA >= 6 -> (H(MULVU|MULV)3 x y)
+(Select0 (DIV(V|VU) x y)) && objabi.GOMIPS64.ISA >= 6 -> (REM(V|VU)3 x y)

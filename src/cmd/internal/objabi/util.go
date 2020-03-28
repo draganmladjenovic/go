@@ -62,13 +62,65 @@ func gomips() string {
 	panic("unreachable")
 }
 
-func gomips64() string {
-	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
-	case "hardfloat", "softfloat":
-		return v
+type gomips64Features struct {
+	FPU bool
+	ISA int32
+}
+
+func (f gomips64Features) Flags() (flags []string) {
+	if f.FPU {
+		flags = append(flags, "hardfloat")
+	} else {
+		flags = append(flags, "softfloat")
 	}
-	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")
-	panic("unreachable")
+	if f.ISA == 6 {
+		flags = append(flags, "r6")
+	}
+	return
+}
+
+func (f gomips64Features) String() string {
+	return strings.Join(f.Flags(), ",")
+}
+
+func gomips64() gomips64Features {
+	fill := func(f gomips64Features, env string) gomips64Features {
+		var fpuSet, isaSet int
+		for _, opt := range strings.Split(env, ",") {
+			switch opt {
+			case "hardfloat":
+				f.FPU = true
+				fpuSet++
+			case "softfloat":
+				f.FPU = false
+				fpuSet++
+			case "r6":
+				f.ISA = 6
+				isaSet++
+			case "mips3":
+				f.ISA = 0
+				isaSet++
+			default:
+				goto Error
+			}
+		}
+
+		if fpuSet < 2 && isaSet < 2 {
+			return f
+		}
+
+	Error:
+		log.Fatalf("Invalid GOMIPS64 value. Must be at most one of hardfloat or softfloat" +
+			" and at most one of r6 or mips3.")
+		panic("unreachable")
+	}
+
+	f := fill(gomips64Features{}, defaultGOMIPS64)
+	if u := os.Getenv("GOMIPS64"); u != "" {
+		f = fill(f, u)
+	}
+
+	return f
 }
 
 func goppc64() int {

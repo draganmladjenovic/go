@@ -3,6 +3,7 @@
 
 package ssa
 
+import "cmd/internal/objabi"
 import "cmd/compile/internal/types"
 
 func rewriteValueMIPS64(v *Value) bool {
@@ -313,6 +314,18 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpMIPS64AND(v)
 	case OpMIPS64ANDconst:
 		return rewriteValueMIPS64_OpMIPS64ANDconst(v)
+	case OpMIPS64CMPEQD:
+		return rewriteValueMIPS64_OpMIPS64CMPEQD(v)
+	case OpMIPS64CMPEQF:
+		return rewriteValueMIPS64_OpMIPS64CMPEQF(v)
+	case OpMIPS64CMPGED:
+		return rewriteValueMIPS64_OpMIPS64CMPGED(v)
+	case OpMIPS64CMPGEF:
+		return rewriteValueMIPS64_OpMIPS64CMPGEF(v)
+	case OpMIPS64CMPGTD:
+		return rewriteValueMIPS64_OpMIPS64CMPGTD(v)
+	case OpMIPS64CMPGTF:
+		return rewriteValueMIPS64_OpMIPS64CMPGTF(v)
 	case OpMIPS64LoweredAtomicAdd32:
 		return rewriteValueMIPS64_OpMIPS64LoweredAtomicAdd32(v)
 	case OpMIPS64LoweredAtomicAdd64:
@@ -2461,6 +2474,138 @@ func rewriteValueMIPS64_OpMIPS64ANDconst(v *Value) bool {
 		v.reset(OpMIPS64ANDconst)
 		v.AuxInt = c & d
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPEQD(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPEQD <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPEQD <typ.Float64> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPEQD)
+		v.Type = typ.Float64
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPEQF(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPEQF <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPEQF <typ.Float32> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPEQF)
+		v.Type = typ.Float32
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGED(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPGED <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPGED <typ.Float64> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPGED)
+		v.Type = typ.Float64
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGEF(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPGEF <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPGEF <typ.Float32> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPGEF)
+		v.Type = typ.Float32
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGTD(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPGTD <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPGTD <typ.Float64> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPGTD)
+		v.Type = typ.Float64
+		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64CMPGTF(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (CMPGTF <t> x y)
+	// cond: t.IsFlags() && objabi.GOMIPS64.ISA >= 6
+	// result: (CMPGTF <typ.Float32> x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if !(t.IsFlags() && objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64CMPGTF)
+		v.Type = typ.Float32
+		v.AddArg2(x, y)
 		return true
 	}
 	return false
@@ -6992,6 +7137,70 @@ func rewriteValueMIPS64_OpSelect0(v *Value) bool {
 		v.AuxInt = int64(uint64(c) % uint64(d))
 		return true
 	}
+	// match: (Select0 (MULVU x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (HMULVU3 x y)
+	for {
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64HMULVU3)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select0 (MULV x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (HMULV3 x y)
+	for {
+		if v_0.Op != OpMIPS64MULV {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64HMULV3)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select0 (DIVV x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (REMV3 x y)
+	for {
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64REMV3)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select0 (DIVVU x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (REMVU3 x y)
+	for {
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64REMVU3)
+		v.AddArg2(x, y)
+		return true
+	}
 	return false
 }
 func rewriteValueMIPS64_OpSelect1(v *Value) bool {
@@ -7202,6 +7411,54 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 		d := v_0_1.AuxInt
 		v.reset(OpMIPS64MOVVconst)
 		v.AuxInt = int64(uint64(c) / uint64(d))
+		return true
+	}
+	// match: (Select1 (MULVU x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (MULVU3 x y)
+	for {
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64MULVU3)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select1 (DIVV x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (DIVV3 x y)
+	for {
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64DIVV3)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Select1 (DIVVU x y))
+	// cond: objabi.GOMIPS64.ISA >= 6
+	// result: (DIVVU3 x y)
+	for {
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		if !(objabi.GOMIPS64.ISA >= 6) {
+			break
+		}
+		v.reset(OpMIPS64DIVVU3)
+		v.AddArg2(x, y)
 		return true
 	}
 	return false

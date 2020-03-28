@@ -351,6 +351,18 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		}
 	}
 
+	if objabi.GOMIPS64.ISA >= 6 {
+		opcodeTable[OpMIPS64CMPEQF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPEQD].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGEF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGED].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGTF].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64CMPGTD].reg.outputs = []outputInfo{{0, fpRegMaskMIPS64}}
+
+		opcodeTable[OpMIPS64FPFlagFalse].reg.inputs = []inputInfo{{0, fpRegMaskMIPS64}}
+		opcodeTable[OpMIPS64FPFlagTrue].reg.inputs = []inputInfo{{0, fpRegMaskMIPS64}}
+	}
+
 	if ctxt.Flag_shared {
 		// LoweredWB is secretly a CALL and CALLs on 386 in
 		// shared mode get rewritten by obj6.go to go through

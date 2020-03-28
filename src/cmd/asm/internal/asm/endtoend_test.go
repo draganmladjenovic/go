@@ -430,7 +430,11 @@ func TestAMD64Errors(t *testing.T) {
 
 func TestMIPSEndToEnd(t *testing.T) {
 	testEndToEnd(t, "mips", "mips")
+	defer func(old int32) { objabi.GOMIPS64.ISA = old }(objabi.GOMIPS64.ISA)
+	objabi.GOMIPS64.ISA = 0
 	testEndToEnd(t, "mips64", "mips64")
+	objabi.GOMIPS64.ISA = 6
+	testEndToEnd(t, "mips64", "mips64r6")
 }
 
 func TestPPC64EndToEnd(t *testing.T) {
