@@ -318,10 +318,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVW	R5, 8(R29)
 	MOVW	R6, 12(R29)
 	MOVW	$runtime·sigtrampgo(SB), R1
+	MOVW 	R1, R23
 	JAL	(R1)
 	RET
 
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+TEXT runtime·cgoSigtramp(SB),NOSPLIT|NORSBCALC,$0
 #ifdef GOBUILDMODE_shared
 	CPLOAD R25, RSB
 #endif

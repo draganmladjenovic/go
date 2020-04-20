@@ -512,6 +512,8 @@ const (
 	// new object file format).
 	AttrIndexed
 
+	AttrNoRSBCalculation
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -536,6 +538,7 @@ func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
 func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
 func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
 func (a Attribute) Indexed() bool       { return a&AttrIndexed != 0 }
+func (a Attribute) NoRSBCalcualation() bool { return a&AttrNoRSBCalculation != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
@@ -571,6 +574,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrWasInlined, s: ""},
 	{bit: AttrTopFrame, s: "TOPFRAME"},
 	{bit: AttrIndexed, s: ""},
+	{bit: AttrNoRSBCalculation, s: "NORSBCALC"},
 }
 
 // TextAttrString formats a for printing in as part of a TEXT prog.

@@ -29,21 +29,21 @@ TEXT main(SB),NOSPLIT|NOFRAME,$0
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_mips_linux_lib(SB),NOSPLIT,$-4
+TEXT _rt0_mips_linux_lib(SB),NOSPLIT|NORSBCALC,$-4
 #ifdef GOBUILDMODE_shared
 	CPLOAD	R25, RSB
 #endif
 	MOVW $_rt0_lib<>(SB), R1
 	JMP (R1)
 
-TEXT _rt0_mipsle_linux_lib(SB),NOSPLIT,$-4
+TEXT _rt0_mipsle_linux_lib(SB),NOSPLIT|NORSBCALC,$-4
 #ifdef GOBUILDMODE_shared
 	CPLOAD	R25, RSB
 #endif
 	MOVW $_rt0_lib<>(SB), R1
 	JMP (R1)
 
-TEXT _rt0_lib<>(SB),NOSPLIT,$84
+TEXT _rt0_lib<>(SB),NOSPLIT|NORSBCALC,$84
 
 	// Preserve callee-save registers.
 	MOVW	R16, (4)(R29)
@@ -68,8 +68,8 @@ TEXT _rt0_lib<>(SB),NOSPLIT,$84
 	MOVW	R5, _rt0_lib_argv<>(SB)
 
 	// Synchronous initialization.
-	MOVW	$runtime·libpreinit(SB), R2
-	JAL	(R2)
+	MOVW	$runtime·libpreinit(SB), R23
+	JAL	(R23)
 
 	// Create a new thread to do the runtime initialization.
 	// We setup call frame to _cgo_sys_thread_create following O32 ABI
@@ -98,7 +98,7 @@ TEXT _rt0_lib<>(SB),NOSPLIT,$84
 	MOVD	(40+8*5)(R29), F30
 	RET
 
-TEXT _rt0_lib_go<>(SB),NOSPLIT,$-4
+TEXT _rt0_lib_go<>(SB),NOSPLIT|NORSBCALC,$-4
 	// This is called from external pthread code so we need to setup RSB on entry
 #ifdef GOBUILDMODE_shared
 	CPLOAD	R25, RSB

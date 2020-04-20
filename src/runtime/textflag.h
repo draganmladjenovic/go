@@ -35,3 +35,7 @@
 // Function is the top of the call stack. Call stack unwinders should stop
 // at this function.
 #define TOPFRAME 2048
+// Don't insert RSB register calculation preamble.
+// used for mipsx when buildmode=plugin is used.
+#define NORSBCALC 4096
+

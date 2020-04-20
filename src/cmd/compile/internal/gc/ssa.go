@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/mips"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -6604,7 +6605,27 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
 		// insert an actual hardware NOP that will have the right line number.
 		// This is different from obj.ANOP, which is a virtual no-op
 		// that doesn't make it into the instruction stream.
-		thearch.Ginsnopdefer(s.pp)
+		switch thearch.LinkArch.Family {
+		case sys.MIPS:
+			// On mips, when compiling Go into position
+			// independent code, we save gp to the stack
+			// and restore it in next instruction,
+			// jmpdefer will return to restore instruction
+			if Ctxt.Flag_shared {
+				p := s.Prog(mips.AMOVW)
+				s.AddrScratch(&p.To)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = mips.REG_R28
+
+				p = s.Prog(mips.AMOVW)
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = mips.REG_R28
+				s.AddrScratch(&p.From)
+			}
+			fallthrough
+		default:
+			thearch.Ginsnopdefer(s.pp)
+		}
 	}
 
 	if sym, ok := v.Aux.(*obj.LSym); ok {

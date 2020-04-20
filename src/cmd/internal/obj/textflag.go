@@ -51,4 +51,8 @@ const (
 	// Function is the top of the call stack. Call stack unwinders should stop
 	// at this function.
 	TOPFRAME = 2048
+
+	// Don't insert RSB register calculation preamble.
+	// used for mipsx for buildmode=plugin.
+	NORSBCALC = 4096
 )

@@ -13,6 +13,8 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/mips"
+	"fmt"
+	"strings"
 )
 
 // isFPreg reports whether r is an FP register
@@ -479,8 +481,39 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p6, p2)
-	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
+	case ssa.OpMIPSCALLstatic:
+		if strings.HasSuffix(v.Aux.(fmt.Stringer).String(), "mcall") {
+			p := s.Prog(mips.AMOVW)
+			s.AddrScratch(&p.To)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = mips.REG_R28
+		}
 		s.Call(v)
+		if strings.HasSuffix(v.Aux.(fmt.Stringer).String(), "mcall") {
+			p := s.Prog(mips.AMOVW)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = mips.REG_R28
+			s.AddrScratch(&p.From)
+		}
+	case ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
+		p := s.Prog(mips.AMOVW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = mips.REGTMP
+		if gc.Ctxt.Flag_shared {
+			p := s.Prog(mips.AMOVW)
+			s.AddrScratch(&p.To)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = mips.REG_R28
+		}
+		s.Call(v)
+		if gc.Ctxt.Flag_shared {
+			p := s.Prog(mips.AMOVW)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = mips.REG_R28
+			s.AddrScratch(&p.From)
+		}
 	case ssa.OpMIPSLoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

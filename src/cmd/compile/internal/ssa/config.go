@@ -305,6 +305,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+		c.NeedsFpScratch = true
 	case "riscv64":
 		c.PtrSize = 8
 		c.RegSize = 8

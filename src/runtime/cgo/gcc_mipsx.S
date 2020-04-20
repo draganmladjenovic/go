@@ -39,6 +39,7 @@ crosscall1:
 	sdc1	$f30, 80($29)
 #endif
 	jalr	$5	// call setg_gcc
+	move 	$23, $4
 	jalr	$4	// call fn
 
 	lw	$16, 4($29)

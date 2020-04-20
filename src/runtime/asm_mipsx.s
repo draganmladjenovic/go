@@ -11,7 +11,7 @@
 
 #define	REGCTXT	R22
 
-TEXT runtime·rt0_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_go(SB),NOSPLIT|NORSBCALC,$0
 	// R29 = stack; R4 = argc; R5 = argv
 
 	ADDU	$-12, R29
@@ -122,6 +122,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$8-4
 	MOVW	R0, gobuf_lr(R4)
 	MOVW	R0, gobuf_ctxt(R4)
 	MOVW	gobuf_pc(R4), R5
+	MOVW	R5, R23 //REGTMP
 	JMP	(R5)
 
 // void mcall(fn func(*g))
@@ -148,6 +149,7 @@ TEXT runtime·mcall(SB),NOSPLIT|NOFRAME,$0-4
 	ADDU	$-8, R29	// make room for 1 arg and fake LR
 	MOVW	R1, 4(R29)
 	MOVW	R0, 0(R29)
+	MOVW	R4, R23 //REGTMP
 	JAL	(R4)
 	JMP	runtime·badmcall2(SB)
 
@@ -179,6 +181,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
 	MOVW	$runtime·badsystemstack(SB), R4
+	MOVW	R4, R23 //REGTMP
 	JAL	(R4)
 	JAL	runtime·abort(SB)
 
@@ -197,15 +200,18 @@ switch:
 	JAL	runtime·save_g(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R1
 	// make it look like mstart called systemstack on g0, to stop traceback
-	ADDU	$-4, R1
+	ADDU	$-8, R1
 	MOVW	$runtime·mstart(SB), R2
 	MOVW	R2, 0(R1)
 	MOVW	R1, R29
 
 	// call target function
 	MOVW	0(REGCTXT), R4	// code pointer
+	MOVW	RSB, 4(R1)
+	MOVW	R4, R23 //REGTMP
 	JAL	(R4)
 
+	MOVW	4(R29), RSB
 	// switch back to g
 	MOVW	g_m(g), R1
 	MOVW	m_curg(R1), g
@@ -221,6 +227,7 @@ noswitch:
 	MOVW	0(REGCTXT), R4	// code pointer
 	MOVW	0(R29), R31	// restore LR
 	ADD	$4, R29
+	MOVW	R4, R23 //REGTMP
 	JMP	(R4)
 
 /*
@@ -288,8 +295,8 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
 	MOVW	$MAXSIZE, R23;	\
 	SGTU	R1, R23, R23;	\
 	BNE	R23, 3(PC);	\
-	MOVW	$NAME(SB), R4;	\
-	JMP	(R4)
+	MOVW	$NAME(SB), R23;	\
+	JMP	(R23)
 
 TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	argsize+12(FP), R1
@@ -321,8 +328,8 @@ TEXT ·reflectcall(SB),NOSPLIT|NOFRAME,$0-20
 	DISPATCH(runtime·call268435456, 268435456)
 	DISPATCH(runtime·call536870912, 536870912)
 	DISPATCH(runtime·call1073741824, 1073741824)
-	MOVW	$runtime·badreflectcall(SB), R4
-	JMP	(R4)
+	MOVW	$runtime·badreflectcall(SB), R23
+	JMP	(R23)
 
 #define CALLFN(NAME,MAXSIZE)	\
 TEXT NAME(SB),WRAPPER,$MAXSIZE-20;	\
@@ -343,6 +350,7 @@ TEXT NAME(SB),WRAPPER,$MAXSIZE-20;	\
 	MOVW	f+4(FP), REGCTXT;	\
 	MOVW	(REGCTXT), R4;	\
 	PCDATA	$PCDATA_StackMapIndex, $0;	\
+	MOVW	R4, R23 \
 	JAL	(R4);	\
 	/* copy return values back */		\
 	MOVW	argtype+0(FP), R5;	\
@@ -402,12 +410,12 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-4
 // void jmpdefer(fv, sp);
 // called from deferreturn.
 // 1. grab stored LR for caller
-// 2. sub 8(16 for pic) bytes to get back to JAL deferreturn
+// 2. sub 8(24 for pic) bytes to get back to JAL deferreturn
 // 3. JMP to fn
 TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	MOVW	0(R29), R31
 #ifdef GOBUILDMODE_shared
-	ADDU	$-16, R31
+	ADDU	$-24, R31
 #else
 	ADDU	$-8, R31
 #endif
@@ -416,6 +424,7 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
 	ADDU	$-4, R29
 	NOR	R0, R0	// prevent scheduling
 	MOVW	0(REGCTXT), R4
+	MOVW	R4, R23 //REGTMP
 	JMP	(R4)
 
 // Save state of caller into g->sched. Smashes R1.
@@ -492,8 +501,8 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
 	MOVW	R1, 12(R29)
 	MOVW	ctxt+12(FP), R1
 	MOVW	R1, 16(R29)
-	MOVW	$runtime·cgocallback_gofunc(SB), R1
-	JAL	(R1)
+	MOVW	$runtime·cgocallback_gofunc(SB), R23
+	JAL	(R23)
 	RET
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
@@ -521,6 +530,7 @@ nocgo:
 needm:
 	MOVW	g, savedm-4(SP) // g is zero, so is m.
 	MOVW	$runtime·needm(SB), R4
+	MOVW	R4, R23 //REGTMP
 	JAL	(R4)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -596,6 +606,7 @@ havem:
 	MOVW	savedm-4(SP), R3
 	BNE	R3, droppedm
 	MOVW	$runtime·dropm(SB), R4
+	MOVW	R4, R23 //REGTMP
 	JAL	(R4)
 droppedm:
 
@@ -611,7 +622,7 @@ TEXT runtime·setg(SB),NOSPLIT,$-4-4
 
 // void setg_gcc(G*); set g in C TLS.
 // On entry R6 contains new g and R5 contains address of setg_gcc
-TEXT setg_gcc<>(SB),NOSPLIT,$-4
+TEXT setg_gcc<>(SB),NOSPLIT|NORSBCALC,$-4
 #ifdef GOBUILDMODE_shared
 	CPLOAD	R5, RSB
 #endif
@@ -638,7 +649,7 @@ TEXT runtime·return0(SB),NOSPLIT,$0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME|NORSBCALC,$0
 #ifdef GOBUILDMODE_shared
 	CPLOAD	R25, RSB
 #endif
@@ -659,7 +670,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME|NORSBCALC,$0-0
 	NOR	R0, R0	// NOP
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
@@ -922,3 +933,19 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
 	MOVW	R1, lo+4(FP)
 	MOVW	R2, y+8(FP)
 	JMP	runtime·goPanicExtendSlice3CU(SB)
+	
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	// g (R30), R3 and REGTMP (R23) might be clobbered by load_g. R30 and R23
+	// are callee-save in the gcc calling convention, so save them.
+	MOVW	R23, R8
+	MOVW	g, R9
+	MOVW	R31, R10 // this call frame does not save LR
+
+	MOVW	runtime·lastmoduledatap(SB), R5
+	MOVW	R4, moduledata_next(R5)
+	MOVW	R4, runtime·lastmoduledatap(SB)
+
+	MOVW	R8, R23
+	MOVW	R9, g	
+	MOVW	R10, R31
+	RET

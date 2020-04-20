@@ -41,7 +41,75 @@ import (
 )
 
 func gentext(ctxt *ld.Link) {
-	return
+
+	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0) // FIXME runtime.addmoduledata
+	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return
+	}
+
+	addmoduledata.Attr |= sym.AttrReachable
+	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
+	initfunc.Type = sym.STEXT
+	initfunc.Attr |= sym.AttrLocal
+	initfunc.Attr |= sym.AttrReachable
+
+	//8f970000        lw      s7,0(gp)
+	//      40: R_MIPS_GOT16        local.runtime/internal/atomic.spinLock
+	//26f70000        addiu   s7,s7,0
+	//      44: R_MIPS_LO16 local.runtime/internal/atomic.spinLock
+	//02e0f809        jalr    s7
+
+	o := func(op uint32) {
+		initfunc.AddUint32(ctxt.Arch, op)
+	}
+
+	o(0x8f840000) // lw      a0, 0(gp)
+	rel := initfunc.AddRel()
+	rel.Off = 0
+	rel.Siz = 4
+	rel.Sym = ctxt.Moduledata
+	rel.Type = objabi.R_ADDRMIPS_GOTPAGE
+	rel.Add = 0
+
+	o(0x24840000) // addiu a0,a0,0
+	rel = initfunc.AddRel()
+	rel.Off = 4
+	rel.Siz = 4
+	rel.Sym = ctxt.Moduledata
+	rel.Type = objabi.R_ADDRMIPS_PAGEOFF
+	rel.Add = 0 //4
+
+	o(0x8f990000) // lw      t9, 0(gp)
+	rel = initfunc.AddRel()
+	rel.Off = 8
+	rel.Siz = 4
+	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+	rel.Type = objabi.R_ADDRMIPS_GOTPAGE
+	rel.Add = 0 // puke&cry
+
+	o(0x27390000) // addiu t9,t9,0
+	rel = initfunc.AddRel()
+	rel.Off = 12
+	rel.Siz = 4
+	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+	rel.Type = objabi.R_ADDRMIPS_PAGEOFF
+	rel.Add = 0 //4
+
+	o(0x27370000) // addiu   s7,t9,0
+
+	o(0x03200008) // jr
+	o(0)
+
+	if ctxt.BuildMode == ld.BuildModePlugin {
+		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	}
+	ctxt.Textp = append(ctxt.Textp, initfunc)
+	initarrayEntry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+	initarrayEntry.Attr |= sym.AttrReachable
+	initarrayEntry.Type = sym.SINITARR
+	initarrayEntry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
@@ -69,8 +137,12 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 		ctxt.Out.Write32(uint32(elf.R_MIPS_TLS_TPREL_LO16) | uint32(elfsym)<<8)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		ctxt.Out.Write32(uint32(elf.R_MIPS_26) | uint32(elfsym)<<8)
+	case objabi.R_ADDRMIPS_GOT_DISP:
+		symhi := uint32(r.Xsym.Elfsym) << 8
+		ctxt.Out.Write32(uint32(elf.R_MIPS_GOT16) | symhi)
 	case objabi.R_ADDRMIPS_GOTPAGE:
-		ctxt.Out.Write32(uint32(elf.R_MIPS_GOT16) | uint32(elfsym)<<8)
+		symhi := uint32(elfsym) << 8
+		ctxt.Out.Write32(uint32(elf.R_MIPS_GOT16) | symhi)
 	case objabi.R_ADDRMIPS_PAGEOFF:
 		ctxt.Out.Write32(uint32(elf.R_MIPS_LO16) | uint32(elfsym)<<8)
 	case objabi.R_ADDRMIPSTLS_GOT:
@@ -93,7 +165,7 @@ func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) i
 	switch r.Type {
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSTLS, objabi.R_ADDRMIPS_PAGEOFF:
 		return int64(o&0xffff0000 | uint32(t)&0xffff)
-	case objabi.R_ADDRMIPSU, objabi.R_ADDRMIPS_GOTPAGE:
+	case objabi.R_ADDRMIPSU, objabi.R_ADDRMIPS_GOTPAGE, objabi.R_ADDRMIPS_GOT_DISP:
 		return int64(o&0xffff0000 | uint32((t+(1<<15))>>16)&0xffff)
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		return int64(o&0xfc000000 | uint32(t>>2)&^0xfc000000)
@@ -107,7 +179,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		switch r.Type {
 		default:
 			return val, false
-		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU, objabi.R_ADDRMIPS_GOTPAGE, objabi.R_ADDRMIPS_PAGEOFF:
+		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU, objabi.R_ADDRMIPS_GOTPAGE, objabi.R_ADDRMIPS_PAGEOFF, objabi.R_ADDRMIPS_GOT_DISP:
 			r.Done = false
 
 			// set up addend for eventual relocation via outer symbol.

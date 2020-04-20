@@ -171,7 +171,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		s = strings.Replace(s, "·", ".", -1)
 	}
 
-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && (x.Type == sym.STEXT || (x.Type != sym.SHOSTOBJ && x.Type != sym.SDYNIMPORT && (ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) && (ctxt.Arch.Family == sys.MIPS || ctxt.Arch.Family == sys.MIPS64))) {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every

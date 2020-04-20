@@ -236,6 +236,10 @@ const (
 	// R_ADDRMIPSTLS_GOT (only used on mips/mips64) resolves to 16-bit offset of GOT slot which contains
 	// the TLS address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS_GOT
+	// FIXME MIPS R_ADDRMIPS_GP_DISP (only used on mips/mips64) resolves to 16-bit offset of GOT slot which contains address
+	// of memory block (GOT page) that points to withing 32KB of external address, by encoding it into the instruction.
+	// Note that this and subsequent relocation can be only used with local symbols.
+	R_ADDRMIPS_GOT_DISP
 
 	// R_WASMIMPORT resolves to the index of the WebAssembly function import.
 	R_WASMIMPORT

@@ -12,9 +12,11 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"fmt"
 	"internal/race"
 	"math/rand"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -141,7 +143,12 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			if !scratchUsed {
 				scratchUsed = v.Op.UsesScratch()
 			}
-
+			if v.Op == ssa.OpMIPSCALLstatic && strings.HasSuffix(v.Aux.(fmt.Stringer).String(), "mcall") && thearch.LinkArch.InFamily(sys.MIPS) {
+				scratchUsed = true
+			}
+		}
+		if b.Kind == ssa.BlockDefer && thearch.LinkArch.InFamily(sys.MIPS) && Ctxt.Flag_shared {
+			scratchUsed = true
 		}
 	}
 

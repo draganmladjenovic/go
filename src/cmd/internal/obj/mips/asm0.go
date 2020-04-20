@@ -417,6 +417,9 @@ var optab = []Optab{
 	{AJMP, C_NONE, C_NONE, C_LBRA_PIC, 66, 12, REGZERO, sys.MIPS, 0},
 	{AJAL, C_NONE, C_NONE, C_LBRA_PIC, 66, 12, REGLINK, sys.MIPS, 0},
 
+	{AMOVW, C_ADDR_GOTREF, C_NONE, C_REG, 67, 8, 0, 0, 0},
+	{AMOVW, C_REG, C_NONE, C_ADDR_GOTREF, 68, 8, 0, 0, 0},
+
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0, 0},
 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_SCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
@@ -665,6 +668,8 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			}
 			return C_LAUTO
 
+		case obj.NAME_GOTREF:
+			return C_ADDR_GOTREF
 		case obj.NAME_NONE:
 			c.instoffset = a.Offset
 			if c.instoffset == 0 {
@@ -738,6 +743,8 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 				return C_SACON
 			}
 			return C_LACON
+		case obj.NAME_GOTREF:
+			return C_ADDR_GOTREF
 
 		default:
 			return C_GOK
@@ -1786,7 +1793,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel1.Off = int32(c.pc)
 		rel1.Siz = 4
 		rel1.Sym = p.From.Sym
-		rel1.Add = p.From.Offset
+		rel1.Add = 0
 		rel1.Type = objabi.R_ADDRMIPS_GOTPAGE
 
 		o2 = OP_IRR(c.opirr(add), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
@@ -1847,14 +1854,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
 		rel.Sym = p.To.Sym
-		rel.Add = p.To.Offset
+		rel.Add = p.To.Offset + 12
 		rel.Type = objabi.R_ADDRMIPS_GOTPAGE
 		o2 = OP_IRR(c.opirr(add), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel2 := obj.Addrel(c.cursym)
 		rel2.Off = int32(c.pc + 4)
 		rel2.Siz = 4
 		rel2.Sym = p.To.Sym
-		rel2.Add = p.To.Offset
+		rel2.Add = p.To.Offset + 12
 		rel2.Type = objabi.R_ADDRMIPS_PAGEOFF
 		o3 = OP_RRR(c.oprrr(p.As), uint32(0), uint32(REGTMP), uint32(o.param))
 		rel3 := obj.Addrel(c.cursym)
@@ -1864,6 +1871,25 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel3.Add = p.To.Offset
 		rel3.Type = objabi.R_CALL
 
+	case 67: /* mov addr_pic, r ==> lw o(REGSB), REGTMP + lw o(REGTMP), r */
+
+		o1 = OP_IRR(c.opirr(-AMOVW), uint32(0), uint32(REGSB), uint32(p.To.Reg))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Add = p.From.Offset
+		rel.Type = objabi.R_ADDRMIPS_GOT_DISP
+
+	case 68: /* mov r, addr_pic ==> lw o(REGSB), REGTMP + sw r, o(REGTMP) */
+
+		o1 = OP_IRR(c.opirr(-AMOVW), uint32(0), uint32(REGSB), uint32(REGTMP))
+		rel := obj.Addrel(c.cursym)
+		rel.Off = int32(c.pc)
+		rel.Siz = 4
+		rel.Sym = p.To.Sym
+		rel.Add = p.To.Offset
+		rel.Type = objabi.R_ADDRMIPS_GOT_DISP
 	}
 
 	out[0] = o1

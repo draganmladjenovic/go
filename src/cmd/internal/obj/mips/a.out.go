@@ -311,6 +311,7 @@ const (
 	C_ZOREG
 	C_SOREG
 	C_LOREG
+	C_ADDR_GOTREF
 	C_GOK
 	C_ADDR
 	C_ADDR_PIC /* $lext_pic (memory)*/

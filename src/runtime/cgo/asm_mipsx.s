@@ -10,7 +10,7 @@
  * void crosscall2(void (*fn)(void*, int32, uintptr), void*, int32, uintptr)
  * Save registers and call fn with two arguments.
  */
-TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+TEXT crosscall2(SB),NOSPLIT|NOFRAME|NORSBCALC,$0
 #ifdef GOBUILDMODE_shared
 	// Go PIC code uses RSB(R28) so we initialize its value on entry as per O32 ABI
 	CPLOAD	R25, RSB
@@ -51,6 +51,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	MOVD	F30, (4*14+8*5)(R29)
 #endif
 	JAL	runtime·load_g(SB)
+	MOVW	R4, R23 //REGTMP, used for buildmode=plugin
 	JAL	(R4)
 
 	MOVW	(4*4)(R29), R16

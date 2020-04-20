@@ -124,6 +124,83 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			p.As = AADDVU
 		}
 	}
+
+	if c.ctxt.Flag_dynlink {
+		c.rewriteToUseGot(p)
+	}
+}
+
+func (c *ctxt0) rewriteToUseGot(p *obj.Prog) {
+	// We only care about global data: NAME_EXTERN means a global
+	// symbol in the Go sense, and p.Sym.Local is true for a few
+	// internally defined symbols.
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		// MOVW $sym, Rx becomes MOVW sym@GOT, Rx
+		// MOVW $sym+<off>, Rx becomes MOVW sym@GOT, Rx; ADD <off>, Rx
+
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		if p.From.Offset != 0 {
+			q := obj.Appendp(p, c.newprog)
+			q.As = AADD
+			q.From.Type = obj.TYPE_CONST
+			q.From.Offset = p.From.Offset
+			q.To = p.To
+			p.From.Offset = 0
+		}
+	}
+	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
+		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+	var source *obj.Addr
+	// MOVx sym, Ry becomes MOVW sym@GOT, REGTMP; MOVx (REGTMP), Ry
+	// MOVx Ry, sym becomes MOVW sym@GOT, REGTMP; MOVx Ry, (REGTMP)
+	// An addition may be inserted between the two MOVs if there is an offset.
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+			c.ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+		}
+		source = &p.From
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
+		source = &p.To
+	} else {
+		return
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+	if source.Sym.Type == objabi.STLSBSS {
+		return
+	}
+	if source.Type != obj.TYPE_MEM {
+		c.ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+
+	p1 := obj.Appendp(p, c.newprog)
+	p2 := obj.Appendp(p1, c.newprog)
+
+	p1.As = AMOVW
+	p1.From.Type = obj.TYPE_MEM
+	p1.From.Sym = source.Sym
+	p1.From.Name = obj.NAME_GOTREF
+	p1.To.Type = obj.TYPE_REG
+	p1.To.Reg = REGTMP
+
+	p2.As = p.As
+	p2.From = p.From
+	p2.To = p.To
+	if p.From.Name == obj.NAME_EXTERN {
+		p2.From.Reg = REGTMP
+		p2.From.Name = obj.NAME_NONE
+		p2.From.Sym = nil
+	} else if p.To.Name == obj.NAME_EXTERN {
+		p2.To.Reg = REGTMP
+		p2.To.Name = obj.NAME_NONE
+		p2.To.Sym = nil
+	} else {
+		return
+	}
+	obj.Nopout(p)
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -320,6 +397,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			p.To.Offset = int64(autosize) - ctxt.FixedFrameSize()
 
+			p3 := p
+			if c.ctxt.Flag_shared && !p.From.Sym.NoRSBCalcualation() {
+				p3 = obj.Appendp(p, newprog)
+				p3.As = ACPLOAD
+				p3.Pos = p.Pos
+				p3.From.Type = obj.TYPE_REG
+				p3.From.Reg = REGTMP
+				p3.To.Type = obj.TYPE_REG
+				p3.To.Reg = REG_R28
+			}
+
 			if c.cursym.Func.Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
 				if p.From.Sym.NoFrame() {
@@ -328,9 +416,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			if !p.From.Sym.NoSplit() {
-				p = c.stacksplit(p, autosize) // emit split check
+				p = c.stacksplit(p3, autosize) // emit split check
+			} else {
+				p = p3
 			}
-
 			q = p
 
 			if autosize != 0 {
@@ -817,6 +906,24 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
 	p.Mark |= BRANCH
+
+	if c.ctxt.Flag_shared {
+		p = obj.Appendp(p, c.newprog)
+		p.As = add
+		p.From.Type = obj.TYPE_CONST
+		p.Reg = REG_R23 //REG_TEMP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R23
+
+		switch {
+		case framesize <= objabi.StackSmall:
+			p.From.Offset = -48
+		case framesize <= objabi.StackBig:
+			p.From.Offset = -52
+		default:
+			p.From.Offset = -72
+		}
+	}
 
 	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
